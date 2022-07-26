@@ -27,6 +27,7 @@ class VWO
         @queue = []
         @queue_metadata = {}
         @batch_config = batch_config
+        @mutex = Mutex.new
 
         if batch_config[:request_time_interval]
           @request_time_interval = batch_config[:request_time_interval]
@@ -83,7 +84,7 @@ class VWO
       end
 
       def flush_when_request_times_up
-        while @timer > Time.now
+        while !@timer.nil? && @timer > Time.now
           sleep(1)
         end
         flush
@@ -91,49 +92,51 @@ class VWO
       end
 
       def flush(manual = false)
-        if @queue.length() > 0
-          @logger.log(
-            LogLevelEnum::DEBUG,
-            format(
-              LogMessageEnum::DebugMessages::BEFORE_FLUSHING,
-              file: FileNameEnum::BatchEventsQueue,
-              manually: manual ? 'manually' : '',
-              length: @queue.length(),
-              timer: manual ? 'Timer will be cleared and registered again,' : '',
-              queue_metadata: @queue_metadata
+        @mutex.synchronize {
+          if @queue.length() > 0
+            @logger.log(
+              LogLevelEnum::DEBUG,
+              format(
+                LogMessageEnum::DebugMessages::BEFORE_FLUSHING,
+                file: FileNameEnum::BatchEventsQueue,
+                manually: manual ? 'manually' : '',
+                length: @queue.length(),
+                timer: manual ? 'Timer will be cleared and registered again,' : '',
+                queue_metadata: @queue_metadata
+              )
             )
-          )
 
-          @dispatcher.call(@queue, @flush_callback)
-          @logger.log(
-            LogLevelEnum::INFO,
-            format(
-              LogMessageEnum::InfoMessages::AFTER_FLUSHING,
-              file: FILE,
-              manually: manual ? 'manually,' : '',
-              length: @queue.length(),
-              queue_metadata: @queue_metadata
+            @dispatcher.call(@queue, @flush_callback)
+            @logger.log(
+              LogLevelEnum::INFO,
+              format(
+                LogMessageEnum::InfoMessages::AFTER_FLUSHING,
+                file: FILE,
+                manually: manual ? 'manually,' : '',
+                length: @queue.length(),
+                queue_metadata: @queue_metadata
+              )
             )
-          )
-          @queue_metadata = {}
-          @queue = []
-        else
-          @logger.log(
-            LogLevelEnum::INFO,
-            format(
-              'Batch queue is empty. Nothing to flush.',
-              file: FILE
+            @queue_metadata = {}
+            @queue = []
+          else
+            @logger.log(
+              LogLevelEnum::INFO,
+              format(
+                'Batch queue is empty. Nothing to flush.',
+                file: FILE
+              )
             )
-          )
-        end
-
-        clear_request_timer
-        unless manual
-          if @thread
-            @old_thread = @thread
           end
-        end
-        true
+
+          clear_request_timer
+          unless manual
+            if @thread
+              @old_thread = @thread
+            end
+          end
+          true
+        }
       end
 
       def clear_request_timer
