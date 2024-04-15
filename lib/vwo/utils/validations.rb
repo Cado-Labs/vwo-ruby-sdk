@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,13 +15,15 @@
 require 'json'
 require 'json-schema'
 require_relative '../schemas/settings_file'
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../constants'
+require_relative './log_message'
 
 class VWO
   module Utils
     module Validations
+      include Enums
+      include CONSTANTS
       # Validates the settings_file
       # @param [Hash]:  JSON object received from VWO server
       #                 must be JSON.
@@ -66,83 +68,156 @@ class VWO
       # Validates if the value passed batch_events has correct data type and values or not.
       #
       # Args: batch_events [Hash]: value to be tested
+      #       api_name     [String]: current api name
       #
       # @return: [Boolean]: True if all conditions are passed else False
-      def is_valid_batch_event_settings(batch_events)
-        logger = VWO::Logger.get_instance
+      def valid_batch_event_settings(batch_events, api_name)
         events_per_request = batch_events[:events_per_request]
         request_time_interval = batch_events[:request_time_interval]
 
         unless events_per_request || request_time_interval
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::EVENT_BATCHING_INSUFFICIENT,
-              file: VWO::FileNameEnum::ValidateUtil
-            )
-          )
+          invalid_config_log('batch_events', 'object', api_name)
           return false
         end
 
-        if (request_time_interval && !valid_number?(request_time_interval))
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::REQUEST_TIME_INTERVAL_INVALID,
-              file: VWO::FileNameEnum::ValidateUtil
-            )
-          )
+        if request_time_interval && !valid_number?(request_time_interval)
+          invalid_config_log('batch_events', 'object', api_name)
           return false
         end
 
-        if (events_per_request && !valid_number?(events_per_request))
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::EVENTS_PER_REQUEST_INVALID,
-              file: VWO::FileNameEnum::ValidateUtil
-            )
-          )
+        if events_per_request && !valid_number?(events_per_request)
+          invalid_config_log('batch_events', 'object', api_name)
           return false
         end
 
         if events_per_request && (events_per_request < VWO::MIN_EVENTS_PER_REQUEST || events_per_request > VWO::MAX_EVENTS_PER_REQUEST)
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::EVENTS_PER_REQUEST_OUT_OF_BOUNDS,
-              file: VWO::FileNameEnum::ValidateUtil,
-              min_value: VWO::MIN_EVENTS_PER_REQUEST,
-              max_value: VWO::MAX_EVENTS_PER_REQUEST
-            )
-          )
+          invalid_config_log('batch_events', 'object', api_name)
           return false
         end
 
         if request_time_interval && request_time_interval < VWO::MIN_REQUEST_TIME_INTERVAL
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::REQUEST_TIME_INTERVAL_OUT_OF_BOUNDS,
-              file: VWO::FileNameEnum::ValidateUtil,
-              min_value: VWO::MIN_REQUEST_TIME_INTERVAL
-            )
-          )
+          invalid_config_log('batch_events', 'object', api_name)
           return false
         end
 
         if batch_events.key?(:flushCallback) && !batch_events[:flushCallback].is_a?(Method)
-          logger.log(
-            VWO::LogLevelEnum::ERROR,
-            format(
-              VWO::LogMessageEnum::ErrorMessages::FLUSH_CALLBACK_INVALID,
-              file: VWO::FileNameEnum::ValidateUtil
-            )
+          invalid_config_log('batch_events', 'object', api_name)
+          return false
+        end
+        true
+      end
+
+      def validate_sdk_config?(user_storage, is_development_mode, api_name)
+        if is_development_mode
+          if [true, false].include? is_development_mode
+            valid_config_log('isDevelopmentMode', 'boolean')
+          else
+            invalid_config_log('isDevelopmentMode', 'boolean', api_name)
+            return false
+          end
+        end
+
+        if user_storage
+          if user_storage.is_a?(UserStorage)
+            valid_config_log('UserStorageService', 'object')
+          else
+            invalid_config_log('UserStorageService', 'object', api_name)
+            return false
+          end
+        end
+        true
+      end
+
+      def valid_config_log(parameter, type)
+        Logger.log(
+          LogLevelEnum::INFO,
+          'CONFIG_PARAMETER_USED',
+          {
+            '{file}' => VWO::FileNameEnum::VALIDATE_UTIL,
+            '{parameter}' => parameter,
+            '{type}' => type
+          }
+        )
+      end
+
+      def invalid_config_log(parameter, type, api_name)
+        Logger.log(
+          LogLevelEnum::ERROR,
+          'CONFIG_PARAMETER_INVALID',
+          {
+            '{file}' => VWO::FileNameEnum::VALIDATE_UTIL,
+            '{parameter}' => parameter,
+            '{type}' => type,
+            '{api}' => api_name
+          }
+        )
+      end
+
+      def valid_goal?(goal, campaign, user_id, goal_identifier, revenue_value, is_event_arch_enabled)
+        if goal.nil? || !goal['id']
+          Logger.log(
+            LogLevelEnum::ERROR,
+            'TRACK_API_GOAL_NOT_FOUND',
+            {
+              '{file}' => FILE,
+              '{goalIdentifier}' => goal_identifier,
+              '{userId}' => user_id,
+              '{campaignKey}' => campaign['key']
+            }
+          )
+          return false
+        elsif goal['type'] == GoalTypes::REVENUE && !valid_value?(revenue_value) && !is_event_arch_enabled
+          Logger.log(
+            LogLevelEnum::ERROR,
+            'TRACK_API_REVENUE_NOT_PASSED_FOR_REVENUE_GOAL',
+            {
+              '{file}' => FILE,
+              '{userId}' => user_id,
+              '{goalIdentifier}' => goal_identifier,
+              '{campaignKey}' => campaign['key']
+            }
           )
           return false
         end
         true
       end
+    end
+
+    def valid_campaign_for_track_api?(user_id, campaign_key, campaign_type)
+      if campaign_type == CONSTANTS::CampaignTypes::FEATURE_ROLLOUT
+        Logger.log(
+          LogLevelEnum::ERROR,
+          'API_NOT_APPLICABLE',
+          {
+            '{file}' => FILE,
+            '{api}' => ApiMethods::TRACK,
+            '{userId}' => user_id,
+            '{campaignKey}' => campaign_key,
+            '{campaignType}' => campaign_type
+          }
+        )
+        return false
+      end
+      true
+    end
+
+    def valid_track_api_params?(user_id, campaign_key, custom_variables, variation_targeting_variables, goal_type_to_track, goal_identifier)
+      unless (valid_string?(campaign_key) || campaign_key.is_a?(Array) || campaign_key.nil?) &&
+             valid_string?(user_id) && valid_string?(goal_identifier) &&
+             (custom_variables.nil? || valid_hash?(custom_variables)) &&
+             (variation_targeting_variables.nil? || valid_hash?(variation_targeting_variables)) && CONSTANTS::GOAL_TYPES.key?(goal_type_to_track)
+        # log invalid params
+        Logger.log(
+          LogLevelEnum::ERROR,
+          'API_BAD_PARAMETERS',
+          {
+            '{file}' => FILE,
+            '{api}' => ApiMethods::TRACK
+          }
+        )
+        return false
+      end
+      true
     end
   end
 end

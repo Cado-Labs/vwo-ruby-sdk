@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,9 @@ class VWO
         isEventArchEnabled: {
           type: ['boolean']
         },
+        collectionPrefix: {
+          type: ['string']
+        },
         campaigns: {
           if: {
             type: 'array'
@@ -58,12 +61,12 @@ class VWO
             weight: {
               type: %w[number string]
             },
-           variables: {
-             type: 'array',
-             items: {
-               '$ref' => '#/definitions/variables_schema'
-             }
-           }
+            variables: {
+              type: 'array',
+              items: {
+                '$ref' => '#/definitions/variables_schema'
+              }
+            }
           },
           required: %w[id name weight]
         },
@@ -99,6 +102,7 @@ class VWO
             },
             isBucketingSeedEnabled: ['boolean'],
             isUserListEnabled: ['boolean'],
+            isAlwaysCheckSegment: ['boolean'],
             minItems: 2
           }
         },

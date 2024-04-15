@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class SegmentEvaluatorTest < Test::Unit::TestCase
         custom_variables = test_case_value['custom_variables'] || test_case_value['variation_targeting_variables']
         dsl = test_case_value['dsl']
         expectation = test_case_value['expectation']
-        result = VWO::Services::SegmentEvaluator.new.evaluate("dummyCampaignKey", "dummyUserId", dsl, custom_variables)
+        result = VWO::Services::SegmentEvaluator.new.evaluate('dummyCampaignKey', 'dummyUserId', dsl, custom_variables)
         assert_equal(result, expectation)
       end
     end

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
 # limitations under the License.
 
 require 'murmurhash3'
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../utils/validations'
+require_relative '../utils/log_message'
 require_relative '../constants'
 
 class VWO
@@ -31,40 +31,46 @@ class VWO
       # Source - https://stackoverflow.com/a/20766900/2494535
       U_MAX_32_BIT = 0xFFFFFFFF
       MAX_HASH_VALUE = 2**32
-      FILE = FileNameEnum::Bucketer
+      FILE = FileNameEnum::BUCKETER
 
       def initialize
-        @logger = VWO::Logger.get_instance
+        @logger = VWO::Utils::Logger
       end
 
       # Calculate if this user should become part of the campaign or not
       # @param[String]         :user_id     The unique ID assigned to a user
       # @param[Dict]           :campaign    For getting traffic allotted to the campaign
+      # @param[Boolean]        :disable_logs  if true, do not log log-message
       # @return[Boolean]                    If User is a part of Campaign or not
 
-      def user_part_of_campaign?(user_id, campaign)
+      def user_part_of_campaign?(user_id, campaign, disable_logs = false)
         unless valid_value?(user_id)
           @logger.log(
             LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::INVALID_USER_ID, file: FILE, user_id: user_id, method: 'is_user_part_of_campaign')
+            'USER_ID_INVALID',
+            {
+              '{file}' => FILE,
+              '{userId}' => user_id
+            }
           )
           return false
         end
 
-        if campaign.nil?
-          @logger.log(
-            LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::INVALID_CAMPAIGN, file: FILE, method: 'is_user_part_of_campaign')
-          )
-          return false
-        end
+        return false if campaign.nil?
 
         traffic_allocation = campaign['percentTraffic']
-        value_assigned_to_user = get_bucket_value_for_user(user_id, campaign)
+        value_assigned_to_user = get_bucket_value_for_user(user_id, campaign, nil, disable_logs)
         is_user_part = (value_assigned_to_user != 0) && value_assigned_to_user <= traffic_allocation
         @logger.log(
           LogLevelEnum::INFO,
-          format(LogMessageEnum::InfoMessages::USER_ELIGIBILITY_FOR_CAMPAIGN, file: FILE, user_id: user_id, is_user_part: is_user_part)
+          'USER_CAMPAIGN_ELIGIBILITY',
+          {
+            '{file}' => FILE,
+            '{userId}' => user_id,
+            '{status}' => is_user_part ? 'eligible' : 'not eligible',
+            '{campaignKey}' => campaign['key']
+          },
+          disable_logs
         )
         is_user_part
       end
@@ -74,30 +80,27 @@ class VWO
       #
       # @param[String]            :user_id          The unique ID assigned to User
       # @param[Hash]              :campaign         The Campaign of which User is a part of
+      # @param[Boolean]             :disable_logs   if true, do not log log-message
       #
       # @return[Hash|nil}                           Variation data into which user is bucketed to
       #                                             or nil if not
-      def bucket_user_to_variation(user_id, campaign)
+      def bucket_user_to_variation(user_id, campaign, disable_logs = false)
         unless valid_value?(user_id)
           @logger.log(
             LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::INVALID_USER_ID, file: FILE, user_id: user_id, method: 'bucket_user_to_variation')
+            'USER_ID_INVALID',
+            {
+              '{file}' => FILE,
+              '{userId}' => user_id
+            }
           )
           return
         end
 
-        unless campaign
-          @logger.log(
-            LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::INVALID_CAMPAIGN, file: FILE, method: 'is_user_part_of_campaign')
-          )
-          return
-        end
+        return unless campaign
 
         user_id_for_hash_value = user_id
-        if campaign[:isBucketingSeedEnabled]
-          user_id_for_hash_value = campaign[:id].to_s + "_" + user_id
-        end
+        user_id_for_hash_value = "#{campaign['id']}_#{user_id}" if campaign['isBucketingSeedEnabled']
         hash_value = MurmurHash3::V32.str_hash(user_id_for_hash_value, SEED_VALUE) & U_MAX_32_BIT
         normalize = MAX_TRAFFIC_VALUE.to_f / campaign['percentTraffic']
         multiplier = normalize / 100
@@ -109,15 +112,16 @@ class VWO
 
         @logger.log(
           LogLevelEnum::DEBUG,
-          format(
-            LogMessageEnum::DebugMessages::VARIATION_HASH_BUCKET_VALUE,
-            file: FILE,
-            user_id: user_id,
-            campaign_key: campaign['key'],
-            percent_traffic: campaign['percentTraffic'],
-            bucket_value: bucket_value,
-            hash_value: hash_value
-          )
+          'USER_CAMPAIGN_BUCKET_VALUES',
+          {
+            '{file}' => FILE,
+            '{campaignKey}' => campaign['key'],
+            '{userId}' => user_id,
+            '{percentTraffic}' => campaign['percentTraffic'],
+            '{hashValue}' => hash_value,
+            '{bucketValue}' => bucket_value
+          },
+          disable_logs
         )
 
         get_variation(campaign['variations'], bucket_value)
@@ -146,22 +150,22 @@ class VWO
       def get_bucket_value_for_user(user_id, campaign = {}, group_id = nil, disable_logs = false)
         user_id_for_hash_value = user_id
         if group_id
-          user_id_for_hash_value = group_id.to_s + "_" + user_id
-        elsif campaign[:isBucketingSeedEnabled]
-          user_id_for_hash_value = campaign[:id].to_s + "_" + user_id
+          user_id_for_hash_value = "#{group_id}_#{user_id}"
+        elsif campaign['isBucketingSeedEnabled']
+          user_id_for_hash_value = "#{campaign['id']}_#{user_id}"
         end
         hash_value = MurmurHash3::V32.str_hash(user_id_for_hash_value, SEED_VALUE) & U_MAX_32_BIT
         bucket_value = get_bucket_value(hash_value, MAX_TRAFFIC_PERCENT)
 
         @logger.log(
           LogLevelEnum::DEBUG,
-          format(
-            LogMessageEnum::DebugMessages::USER_HASH_BUCKET_VALUE,
-            file: FILE,
-            hash_value: hash_value,
-            bucket_value: bucket_value,
-            user_id: user_id
-          ),
+          'USER_HASH_BUCKET_VALUE',
+          {
+            '{file}' => FILE,
+            '{hashValue}' => hash_value,
+            '{userId}' => user_id,
+            '{bucketValue}' => bucket_value
+          },
           disable_logs
         )
         bucket_value
@@ -188,11 +192,9 @@ class VWO
       # @return[Hash|nil]
       #
       def get_campaign_using_range(range_for_campaigns, campaigns)
-        range_for_campaigns = range_for_campaigns * 100
+        range_for_campaigns *= 100
         campaigns.each do |campaign|
-          if campaign["max_range"] && campaign["max_range"] >= range_for_campaigns && campaign["min_range"] <= range_for_campaigns
-            return campaign
-          end
+          return campaign if campaign['max_range'] && campaign['max_range'] >= range_for_campaigns && campaign['min_range'] <= range_for_campaigns
         end
         nil
       end

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,11 @@ require 'logger'
 
 class VWO
   class Logger
+    DEBUG = ::Logger::DEBUG
+    INFO = ::Logger::INFO
+    ERROR = ::Logger::ERROR
+    WARN = ::Logger::WARN
+
     @logger = nil
     @logger_instance = nil
 
@@ -24,14 +29,12 @@ class VWO
     end
 
     def initialize(logger_instance)
-      @@logger_instance = logger_instance || ::Logger.new(STDOUT)
+      @@logger_instance = logger_instance || ::Logger.new($stdout)
     end
 
     # Override this method to handle logs in a custom manner
-    def log(level, message, disable_logs = false)
-      unless disable_logs
-        @@logger_instance.log(level, message)
-      end
+    def log(level, message)
+      @@logger_instance.log(level, message)
     end
 
     def instance

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,34 +14,59 @@
 
 require 'json'
 require_relative './validations'
+require_relative './data_location_manager'
+require_relative '../constants'
 
 # Generic utility module
 class VWO
-    module Utils
-        module Utility
-            include Validations
+  module Utils
+    module Utility
+      include Validations
+      include VWO::Utils
+      include VWO::CONSTANTS
 
-            # converting hash with keys as strings into hash with keys as strings
-            # @param[Hash]
-            # @return[Hash]
-            def convert_to_symbol_hash(hashObject)
-                hashObject ||= {}
-                convertedHash = {}
-                hashObject.each do |key, value|
-                    if valid_hash?(value)
-                        convertedHash[key.to_sym] = convert_to_symbol_hash(value)
-                    else
-                        convertedHash[key.to_sym] = value
-                    end
-                end
-                convertedHash
-            end
-
-            def remove_sensitive_properties(properties)
-                properties.delete("env")
-                properties.delete("env".to_sym)
-                JSON.generate(properties)
-            end
+      # converting hash with keys as strings into hash with keys as strings
+      # @param[Hash]
+      # @return[Hash]
+      def convert_to_symbol_hash(hash_object)
+        hash_object ||= {}
+        converted_hash = {}
+        hash_object.each do |key, value|
+          converted_hash[key.to_sym] = if valid_hash?(value)
+                                         convert_to_symbol_hash(value)
+                                       else
+                                         value
+                                       end
         end
+        converted_hash
+      end
+
+      def remove_sensitive_properties(properties)
+        properties.delete('env')
+        properties.delete('env'.to_sym)
+        JSON.generate(properties)
+      end
+
+      def get_url(endpoint)
+        DataLocationManager.get_instance.get_data_location + endpoint
+      end
+
+      def prepare_push_response(custom_dimension_map, resp, result)
+        custom_dimension_map.each do |tag_key, _tag_value|
+          result[tag_key] = resp
+        end
+        result
+      end
+
+      def get_variation_identifiers(variation)
+        if variation['goal_identifier']
+          identifiers = variation['goal_identifier'].split(VWO_DELIMITER)
+        else
+          variation['goal_identifier'] = ''
+          identifiers = []
+        end
+        identifiers
+      end
     end
+  end
 end

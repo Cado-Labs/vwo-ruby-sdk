@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../utils/request'
+require_relative '../utils/utility'
+require_relative '../utils/log_message'
 class VWO
   module Services
     class BatchEventsDispatcher
       include VWO::Enums
+      include VWO::Utils::Utility
       # Initialize the BatchEventDispatcher with logger and development mode
       #
       # @param [Boolean] :  To specify whether the request
       #                     to our server should be made or not.
       #
-      def initialize
-        @logger = VWO::Logger.get_instance
+      def initialize(development_mode = false)
+        @logger = VWO::Utils::Logger
+        @development_mode = development_mode
         @queue = []
       end
 
@@ -36,75 +39,81 @@ class VWO
       # @return[Boolean]
       #
       def dispatch(impression, callback, query_params)
-        url = CONSTANTS::HTTPS_PROTOCOL + CONSTANTS::ENDPOINTS::BASE_URL + CONSTANTS::ENDPOINTS::BATCH_EVENTS
+        url = CONSTANTS::HTTPS_PROTOCOL + get_url(CONSTANTS::ENDPOINTS::BATCH_EVENTS)
         account_id = query_params[:a]
         resp = VWO::Utils::Request.post(url, query_params, impression)
-        if resp.code == '200'
+        case resp.code
+        when '200'
           @logger.log(
             LogLevelEnum::INFO,
-            format(
-              LogMessageEnum::InfoMessages::BULK_IMPRESSION_SUCCESS,
-              file: FileNameEnum::BatchEventsDispatcher,
-              end_point: url,
-              a: account_id
-            )
+            'IMPRESSION_BATCH_SUCCESS',
+            {
+              '{file}' => FILE,
+              '{endPoint}' => url,
+              '{accountId}' => account_id
+            }
           )
           message = nil
-        elsif resp.code == '413'
+        when '413'
           @logger.log(
             LogLevelEnum::DEBUG,
-            format(
-              LogMessageEnum::DebugMessages::BATCH_EVENT_LIMIT_EXCEEDED,
-              file: FileNameEnum::BatchEventsDispatcher,
-              end_point: url,
-              accountId: impression[:a],
-              eventsPerRequest: impression.length()
-            )
+            'CONFIG_BATCH_EVENT_LIMIT_EXCEEDED',
+            {
+              '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+              '{endPoint}' => url,
+              '{eventsPerRequest}' => impression.length,
+              '{accountId}' => impression[:a]
+            }
           )
 
           @logger.log(
             LogLevelEnum::ERROR,
-            format(
-              LogMessageEnum::ErrorMessages::IMPRESSION_FAILED,
-              file: FileNameEnum::BatchEventsDispatcher,
-              end_point: url
-            )
+            'IMPRESSION_FAILED',
+            {
+              '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+              '{err}' => resp.message,
+              '{endPoint}' => url
+            }
           )
           message = resp.message
         else
           @logger.log(
-            LogLevelEnum::DEBUG,
-            format(
-              LogMessageEnum::DebugMessages::BULK_NOT_PROCESSED,
-              file: FileNameEnum::BatchEventsDispatcher
-              )
+            LogLevelEnum::INFO,
+            'IMPRESSION_BATCH_FAILED',
+            { '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER }
           )
 
           @logger.log(
             LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::BatchEventsDispatcher, end_point: url)
+            'IMPRESSION_FAILED',
+            {
+              '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+              '{err}' => resp.message,
+              '{endPoint}' => url
+            }
           )
           message = resp.message
         end
-        if callback
-          callback.call(message, impression)
-        end
+        callback&.call(message, impression)
+        true
       rescue StandardError => e
         @logger.log(
           LogLevelEnum::DEBUG,
-          format(
-            LogMessageEnum::DebugMessages::BULK_NOT_PROCESSED,
-            file: FileNameEnum::BatchEventsDispatcher
-          )
+          'IMPRESSION_BATCH_FAILED',
+          { '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER }
         )
 
         @logger.log(
           LogLevelEnum::ERROR,
-          format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::BatchEventsDispatcher, end_point: url)
+          'IMPRESSION_FAILED',
+          {
+            '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+            '{err}' => e.message,
+            '{endPoint}' => url
+          }
         )
         false
       end
-
     end
   end
 end

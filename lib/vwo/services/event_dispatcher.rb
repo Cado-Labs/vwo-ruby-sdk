@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../utils/request'
+require_relative '../utils/utility'
+require_relative '../utils/log_message'
 require_relative '../constants'
 
 class VWO
@@ -22,6 +23,7 @@ class VWO
     class EventDispatcher
       include VWO::Enums
       include VWO::CONSTANTS
+      include Utils::Utility
 
       EXCLUDE_KEYS = ['url'].freeze
 
@@ -31,7 +33,7 @@ class VWO
       #                     to our server should be made or not.
       #
       def initialize(is_development_mode = false)
-        @logger = VWO::Logger.get_instance
+        @logger = VWO::Utils::Logger
         @is_development_mode = is_development_mode
       end
 
@@ -41,7 +43,7 @@ class VWO
       #                                       the request to be dispatched to the VWO server
       # @return[Boolean]
       #
-      def dispatch(impression)
+      def dispatch(impression, main_keys, end_point)
         return true if @is_development_mode
 
         modified_event = impression.reject do |key, _value|
@@ -50,50 +52,80 @@ class VWO
 
         resp = VWO::Utils::Request.get(impression['url'], modified_event)
         if resp.code == '200'
+          @logger.log(
+            LogLevelEnum::INFO,
+            'IMPRESSION_SUCCESS',
+            {
+              '{file}' => FILE,
+              '{endPoint}' => end_point,
+              '{accountId}' => impression['account_id'] || impression[:account_id],
+              '{mainKeys}' => JSON.generate(main_keys)
+            }
+          )
           true
         else
           @logger.log(
             LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::EventDispatcher, end_point: impression['url'])
+            'IMPRESSION_FAILED',
+            {
+              '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+              '{err}' => resp.message,
+              '{endPoint}' => impression['url']
+            }
           )
           false
         end
-      rescue StandardError
+      rescue StandardError => e
         @logger.log(
           LogLevelEnum::ERROR,
-          format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::EventDispatcher, end_point: impression['url'])
+          'IMPRESSION_FAILED',
+          {
+            '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+            '{err}' => e.message,
+            '{endPoint}' => impression['url']
+          }
         )
         false
       end
 
-      def dispatch_event_arch_post(params, post_data)
+      def dispatch_event_arch_post(params, post_data, options = {})
         return true if @is_development_mode
 
-        url = HTTPS_PROTOCOL + ENDPOINTS::BASE_URL + ENDPOINTS::EVENTS
-        resp = VWO::Utils::Request.event_post(url, params, post_data, SDK_NAME)
+        url = HTTPS_PROTOCOL + get_url(ENDPOINTS::EVENTS)
+        resp = VWO::Utils::Request.event_post(url, params, post_data, SDK_NAME, options)
         if resp.code == '200'
           @logger.log(
             LogLevelEnum::INFO,
-            format(
-              LogMessageEnum::InfoMessages::IMPRESSION_SUCCESS_FOR_EVENT_ARCH, 
-              file: FileNameEnum::EventDispatcher, 
-              event: 'visitor property:' + JSON.generate(post_data[:d][:visitor][:props]), 
-              url: url,
-              a: params[:a]
-            )
+            'IMPRESSION_SUCCESS_FOR_EVENT_ARCH',
+            {
+              '{file}' => FileNameEnum::BATCH_EVENTS_DISPATCHER,
+              '{event}' => "visitor property:#{JSON.generate(post_data[:d][:visitor][:props])}",
+              '{endPoint}' => url,
+              '{accountId}' => params[:a]
+            }
           )
           true
         else
           @logger.log(
             LogLevelEnum::ERROR,
-            format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::EventDispatcher, end_point: url)
+            'IMPRESSION_FAILED',
+            {
+              '{file}' => FileNameEnum::EVENT_DISPATCHER,
+              '{err}' => resp.message,
+              '{endPoint}' => url
+            }
           )
           false
         end
-      rescue StandardError
+      rescue StandardError => e
         @logger.log(
           LogLevelEnum::ERROR,
-          format(LogMessageEnum::ErrorMessages::IMPRESSION_FAILED, file: FileNameEnum::EventDispatcher, end_point: url)
+          'IMPRESSION_FAILED',
+          {
+            '{file}' => FileNameEnum::EVENT_DISPATCHER,
+            '{err}' => e.message,
+            '{endPoint}' => url
+          }
         )
         false
       end

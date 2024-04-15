@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../constants'
+require_relative './log_message'
 
 # Utility module for helper math and random functions
 class VWO
@@ -40,16 +40,13 @@ class VWO
         return !value || value == 0 ? false : true if variable_type == VariableTypes.BOOLEAN
 
         return value if variable_type == VariableTypes::JSON
-      rescue StandardError => _e
-        VWO::Logger.get_instance.log(
+      rescue StandardError => e
+        Logger.log(
           LogLevelEnum::ERROR,
-          format(
-            LogMessageEnum::ErrorMessages::UNABLE_TO_TYPE_CAST,
-            file: FileNameEnum::FeatureUtil,
-            value: value,
-            variable_type: variable_type,
-            of_type: value.class.name
-          )
+          "unable to type cast variable value: #{e.message}",
+          {
+            '{file}' => FILE
+          }
         )
         nil
       end

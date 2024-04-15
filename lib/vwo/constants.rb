@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ class VWO
     SEED_VALUE = 1
     MAX_TRAFFIC_PERCENT = 100
     MAX_TRAFFIC_VALUE = 10_000
-    MAX_RANGE = 10000
+    MAX_RANGE = 10_000
     STATUS_RUNNING = 'RUNNING'
     # rubocop:disable Style/ExpandPathArguments
     LIBRARY_PATH =  File.expand_path('../..', __FILE__)
@@ -27,7 +27,7 @@ class VWO
     HTTP_PROTOCOL = 'http://'
     HTTPS_PROTOCOL = 'https://'
     URL_NAMESPACE = '6ba7b811-9dad-11d1-80b4-00c04fd430c8'
-    SDK_VERSION = '1.28.1'
+    SDK_VERSION = '1.40.0'
     SDK_NAME = 'ruby'
     VWO_DELIMITER = '_vwo_'
     MAX_EVENTS_PER_REQUEST = 5000
@@ -94,6 +94,7 @@ class VWO
     }
 
     module ApiMethods
+      LAUNCH = 'launch'
       ACTIVATE = 'activate'
       GET_VARIATION_NAME = 'get_variation_name'
       TRACK = 'track'

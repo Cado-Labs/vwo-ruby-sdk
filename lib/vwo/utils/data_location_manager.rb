@@ -12,27 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require 'test/unit'
-require_relative '../lib/vwo/logger'
-require 'logger'
-require 'stringio'
+require_relative '../constants'
 
-$stdout = StringIO.new
-
+# Utility module for generating uuid
 class VWO
-  class Logger
-    def log(_level, message)
-      $stdout.puts(message)
+  module Utils
+    class DataLocationManager
+      @@instance = nil
+
+      def self.get_instance
+        @@instance = new if @@instance.nil?
+        @@instance
+      end
+
+      def get_data_location
+        url = VWO::CONSTANTS::ENDPOINTS::BASE_URL
+        url = "#{url}/#{@settings['collectionPrefix']}" if @settings.key?('collectionPrefix')
+        url
+      end
+
+      def set_settings(settings)
+        @settings = settings
+      end
     end
-  end
-end
-
-class LoggerTest < Test::Unit::TestCase
-  def setup
-    @logger_instance = VWO::Logger.get_instance
-  end
-
-  def test_no_logger_passed
-    assert_equal(@logger_instance.class, VWO::Logger)
   end
 end

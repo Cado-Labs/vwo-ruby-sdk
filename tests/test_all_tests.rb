@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,4 +13,4 @@
 # limitations under the License.
 
 require_relative './test_helper'
-Dir[File.dirname(File.absolute_path(__FILE__)) + '/**/test_*.rb'].each {|file| require file }
+Dir["#{File.dirname(File.absolute_path(__FILE__))}/**/test_*.rb"].sort.each { |file| require file }

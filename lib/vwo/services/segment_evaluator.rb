@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative '../logger'
 require_relative '../enums'
 require_relative './operand_evaluator'
 require_relative '../utils/function'
 require_relative '../utils/segment'
 require_relative '../utils/validations'
+require_relative '../utils/log_message'
 
 class VWO
   module Services
@@ -29,7 +29,7 @@ class VWO
 
       # Initializes this class with VWOLogger and OperandEvaluator
       def initialize
-        @logger = VWO::Logger.get_instance
+        @logger = VWO::Utils::Logger
         @operand_evaluator = OperandEvaluator.new
       end
 
@@ -43,15 +43,16 @@ class VWO
       #
       def evaluate_util(dsl, custom_variables)
         operator, sub_dsl = get_key_value(dsl)
-        if operator == OperatorTypes::NOT
+        case operator
+        when OperatorTypes::NOT
           !evaluate_util(sub_dsl, custom_variables)
-        elsif operator == OperatorTypes::AND
+        when OperatorTypes::AND
           sub_dsl.all? { |y| evaluate_util(y, custom_variables) }
-        elsif operator == OperatorTypes::OR
+        when OperatorTypes::OR
           sub_dsl.any? { |y| evaluate_util(y, custom_variables) }
-        elsif operator == OperandTypes::CUSTOM_VARIABLE
+        when OperandTypes::CUSTOM_VARIABLE
           @operand_evaluator.evaluate_custom_variable?(sub_dsl, custom_variables)
-        elsif operator == OperandTypes::USER
+        when OperandTypes::USER
           @operand_evaluator.evaluate_user?(sub_dsl, custom_variables)
         end
       end
@@ -73,14 +74,15 @@ class VWO
       rescue StandardError => e
         @logger.log(
           LogLevelEnum::ERROR,
-          format(
-            LogMessageEnum::ErrorMessages::SEGMENTATION_ERROR,
-            file: FileNameEnum::SegmentEvaluator,
-            user_id: user_id,
-            campaign_key: campaign_key,
-            custom_variables: custom_variables,
-            error_message: e
-          ),
+          'SEGMENTATION_ERROR',
+          {
+            '{file}' => FileNameEnum::SEGMENT_EVALUATOR,
+            '{userId}' => user_id,
+            '{campaignKey}' => campaign_key,
+            '{variation}' => '',
+            '{customVariables}' => custom_variables,
+            '{err}' => e.message
+          },
           disable_logs
         )
         false

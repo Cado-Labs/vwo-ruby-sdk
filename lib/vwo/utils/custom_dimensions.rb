@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
 # limitations under the License.
 
 require 'json'
-require_relative '../logger'
 require_relative '../enums'
 require_relative '../constants'
 require_relative './impression'
 require_relative './utility'
+require_relative './log_message'
 
 # Utility module for helper math and random functions
 class VWO
@@ -29,20 +29,20 @@ class VWO
       include VWO::Utils::Utility
 
       def get_url_params(settings_file, tag_key, tag_value, user_id, sdk_key)
-        url = HTTPS_PROTOCOL + ENDPOINTS::BASE_URL + ENDPOINTS::PUSH
+        url = HTTPS_PROTOCOL + get_url(ENDPOINTS::PUSH)
         tag = { 'u' => {} }
         tag['u'][tag_key] = tag_value
 
         params = get_common_properties(user_id, settings_file)
         params.merge!('url' => url, 'tags' => JSON.generate(tag), 'env' => sdk_key)
 
-        VWO::Logger.get_instance.log(
+        Logger.log(
           LogLevelEnum::DEBUG,
-          format(
-            LogMessageEnum::DebugMessages::PARAMS_FOR_PUSH_CALL,
-            file: FileNameEnum::CustomDimensionsUtil,
-            properties: remove_sensitive_properties(params)
-          )
+          'IMPRESSION_FOR_PUSH',
+          {
+            '{file}' => FileNameEnum::CUSTOM_DIMENSTIONS_UTIL,
+            '{properties}' => JSON.generate(params)
+          }
         )
         params
       end
@@ -55,17 +55,17 @@ class VWO
         params = {
           'eT' => 3,
           't' => JSON.generate(tag),
-          'u' => generator_for(user_id, account_id),
+          'u' => generator_for(user_id, account_id, true),
           'sId' => get_current_unix_timestamp
         }
 
-        VWO::Logger.get_instance.log(
+        Logger.log(
           LogLevelEnum::DEBUG,
-          format(
-            LogMessageEnum::DebugMessages::PARAMS_FOR_PUSH_CALL,
-            file: FileNameEnum::CustomDimensionsUtil,
-            properties: JSON.generate(params)
-          )
+          'IMPRESSION_FOR_PUSH',
+          {
+            '{file}' => FileNameEnum::CUSTOM_DIMENSTIONS_UTIL,
+            '{properties}' => JSON.generate(params)
+          }
         )
         params
       end

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Wingify Software Pvt. Ltd.
+# Copyright 2019-2022 Wingify Software Pvt. Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -47,11 +47,11 @@ class VWO
           return '{}'
         end
 
-        if is_via_webhook
-          path = ::VWO::CONSTANTS::ENDPOINTS::WEBHOOK_SETTINGS_URL
-        else
-          path = ::VWO::CONSTANTS::ENDPOINTS::SETTINGS_URL
-        end
+        path = if is_via_webhook
+                 ::VWO::CONSTANTS::ENDPOINTS::WEBHOOK_SETTINGS_URL
+               else
+                 ::VWO::CONSTANTS::ENDPOINTS::SETTINGS_URL
+               end
         vwo_server_url = "#{PROTOCOL}://#{HOSTNAME}#{path}"
 
         settings_file_response = ::VWO::Utils::Request.get(vwo_server_url, params)

@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.40.0] - 2024-04-08
+
+### Added
+
+- Support for user IP Address and browser user agent to help with bot elimination, IP specific opt out and more options for post segmentation
+- Support for `event_properties` for Data360 enabled accounts
+
+## [1.38.0] - 2022-27-07
+
+### Changed
+
+- Fix invoking `integrations` hook twice when variation is alloted to a non-whitelisted new user and pre-segmentation gets passed.
+
+## [1.37.1] - 2022-25-04
+
+### Changed
+
+- Code properly linted, fixed rubocop warnings and errors
+
+## [1.36.0] - 2022-04-04
+
+### Changed
+
+- Fix resolving `vwo_sdk_log_messages` dependency
+
+## [1.35.0] - 2022-03-28
+
+### Changed
+
+- Always check targeting conditions
+  - The option `Once` is selected by default in the VWO Application, which means the user segment condition is only checked once and the same variation is served to the user on every subsequent call to the SDK's APIs.
+  - If you choose `Always`, the user is evaluated against the segment condition on every call to the SDK's APIs.
+- Instead of multiple tracking calls in case of global goals, now one single batch call will be made to track different goals of different campaigns having same goal-identifier.
+- Instead of multiple tracking calls in case of pushing more than one custom dimension, now one single batch call will be made to push custom dimension map.
+- Integrated VWO SDK Log Messages repo instead of hardcoding messages in every VWO server-side SDK.
+- Old logs are revamped. New logs that would help in better debugging are added.
+
+## [1.30.0] - 2022-09-03
+
+### Changed
+
+- Reading `isBucketingSeedEnabled` flag correctly so that campaign-id will be used for bucketing a user when this flag value is truthy.
+
+## [1.29.1] - 2022-02-25
+
+### Changed
+
+- VWO Log messages dependency added to Gemfile and .gemspec file
+
+## [1.29.0] - 2022-02-23
+
+### Changed
+
+- Tracking data for the `Data Residency` enabled VWO accounts will be sent to the configured location
+- Update year in all the copyright and liense headers
+
 ## [1.28.1] - 2022-01-23
 
 ### Changed
