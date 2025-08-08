@@ -1,4 +1,22 @@
-# VWO Ruby SDK
+# ⚠️ [DEPRECATED] VWO Ruby SDK
+
+**⚠️ This project is no longer actively developed. ⚠️**
+
+**✅ We are only fixing critical bugs and security issues.**
+
+**❌ No new features, enhancements, or non-critical updates will be added.**
+
+#### Switch to *VWO Feature Management & Experimentation(FME)* – The Better Alternative! 🚀
+
+VWO’s FME product empowers teams to seamlessly test, release, optimize, and roll back features across their entire tech stack while minimizing risk and maximizing business impact.
+
+* Check out FME developer documentation [here](https://developers.vwo.com/v2/docs/fme-overview).
+* Check [this](https://developers.vwo.com/v2/docs/sdks-release-info ) for the list of all FME-supported SDKs.
+
+**💡 Need Help?**
+For migration assistance or any questions, contact us at [support@vwo.com](support@vwo.com)
+
+------
 
 [![Gem version](https://badge.fury.io/rb/vwo-sdk.svg)](https://rubygems.org/gems/vwo-sdk)
 [![CI](https://github.com/wingify/vwo-ruby-sdk/workflows/CI/badge.svg?branch=master)](https://github.com/wingify/vwo-ruby-sdk/actions?query=workflow%3ACI)
@@ -193,11 +211,6 @@ ruby tests/test_all_tests.rb
 
 Refer [third-party-attributions.txt](https://github.com/wingify/vwo-ruby-sdk/blob/master/third-party-attributions.txt)
 
-## Authors
-
-* Main Contributor - [Abbas Khaliq](https://github.com/Abbas-khaliq)
-* Repo health maintainer - [Varun Malhotra](https://github.com/softvar)([@s0ftvar](https://twitter.com/s0ftvar))
-
 ## Changelog
 
 Refer [CHANGELOG.md](https://github.com/wingify/vwo-ruby-sdk/blob/master/CHANGELOG.md)
@@ -214,4 +227,4 @@ Please go through our [contributing guidelines](https://github.com/wingify/vwo-r
 
 [Apache License, Version 2.0](https://github.com/wingify/vwo-ruby-sdk/blob/master/LICENSE)
 
-Copyright 2019-2022 Wingify Software Pvt. Ltd.
+Copyright 2019-2025 Wingify Software Pvt. Ltd.

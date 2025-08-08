@@ -17,7 +17,7 @@ require_relative '../constants'
 # Utility module for generating uuid
 class VWO
   module Utils
-    class DataLocationManager
+    class GetAccountFlags
       @@instance = nil
 
       def self.get_instance
@@ -25,10 +25,28 @@ class VWO
         @@instance
       end
 
-      def get_data_location
-        url = VWO::CONSTANTS::ENDPOINTS::BASE_URL
-        url = "#{url}/#{@settings['collectionPrefix']}" if @settings.key?('collectionPrefix')
-        url
+      def get_isNbv2_flag
+        isNBv2 = false
+        if @settings && @settings.key?('isNBv2') && @settings['isNBv2']
+          isNBv2 = @settings['isNBv2']
+        end
+        return isNBv2
+      end
+
+      def get_isNB_flag
+        isNB = false
+        if @settings && @settings.key?('isNB') && @settings['isNB']
+          isNB = @settings['isNB']
+        end
+        return isNB
+      end
+
+      def get_account_id
+        account_id = nil
+        if @settings && @settings.key?('accountId') && @settings['accountId']
+          account_id = @settings['accountId']
+        end
+        return account_id
       end
 
       def set_settings(settings)
